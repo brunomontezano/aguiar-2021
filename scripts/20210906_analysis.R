@@ -5,18 +5,18 @@ library(magrittr)
 
 # Import -----------------------------------------------------------------------
 source("scripts/20210906_functions.R")
-ds <- readr::read_csv("data/coorte-t1-t2-24-08-17.csv") -> raw
+raw <- readr::read_csv("data/coorte-t1-t2-24-08-17.csv")
 
 # Tidy -------------------------------------------------------------------------
 
-# ideias
+# Ideias para pré-processamento
 
-# 10% para imputação para cada variável
-# 20% tira fora
-# usar MICE para imputação
+# 10% de valores ausentes, realizar imputação para variável
+# Se bater 20%, retirar a feature
+# Usar MICE para imputação de variáveis
 
-# criar variáveis, recodificar e imputar
-ds <- ds %>% janitor::clean_names() %>% 
+# Criar variáveis, recodificá-las e imputá-las
+ds <- raw %>% janitor::clean_names() %>% 
   dplyr::filter(bipolar_conferido == 1 | depressao == 1) %>% 
   dplyr::mutate(fast_dic = dplyr::case_when(
     fast_sum_t2 > 11 ~ 1,
@@ -72,31 +72,30 @@ ds <- ds %>% janitor::clean_names() %>%
     panico_lifetime = dplyr::case_when(mini_e06_t2 == 1 ~ 1, TRUE ~ 0),
     bdi_severo = dplyr::case_when(somabdi_t1 >= 29 ~ 1, TRUE ~ 0),
     panico_atual = dplyr::case_when(pancfo_t1 == 1 | pansfo_t1 == 1 ~ 1, TRUE ~ 0)) %>% 
-  dplyr::select(# desfecho
+  dplyr::select(# Desfecho (prejuízo funcional)
     fast_dic,
-    # sociodemograficas
+    # Sociodemográficas e clínicas
     cpele_dic_t1, sexo_t1, idade_t1_2, abep3_t1, estano_t1, religdic_t1,
+    idtrab_t1, escol_t1, pais_internados, pais_tentativa, pais_medicacao,
+    pais_doencapsi, irmaos_doencapsi, medpsi, internacao_vida, 
+    trabdin_t1, trabatu_t1, apoio_t1, apisepa_t1, grupeli_t1,
+    trat_t1, interr_t1, idadrog_t1, forcsex_t1, parceiro_t1,
+    briga_t1, pais_faleceu, aldtenta_t1, algmata_t1, familiar_tb,
     # uso de substancias
     tabaco2_t1, alcool2_t1, maconha2_t1, cocaina2_t1, crack2_t1,
     anfeta2_t1, sedativos2_t1, ilicitas2_t1,
     # transtornos psiquiátricos
-    edmat_t1, edmmel_t1, distat_t1, maniahipo_t1,
-    agoraat_t1, panico_atual, fobsoa_t1,
-    tocat_t1, teptat_t1, tagat_t1,
-    # novas variáveis
-    trabdin_t1, trabatu_t1, apoio_t1, apisepa_t1, grupeli_t1, srq3_t1,
-    srq11_t1, srq17_t1, trat_t1, interr_t1, idadrog_t1, forcsex_t1, parceiro_t1,
-    briga_t1, pais_faleceu, aldtenta_t1, algmata_t1, familiar_tb,
-    # instrumentos
+    edmat_t1, edmmel_t1, distat_t1, maniahipo_t1, agoraat_t1, panico_atual,
+    fobsoa_t1, tocat_t1, teptat_t1, tagat_t1, panico_lifetime, transtorno_psicotico,
+    # Itens da SRQ
+    srq3_t1, srq11_t1, srq17_t1, 
+    # Escores totais de instrumentos
     somabdi_t1, somasrq_t1, hcl_total,
-    # CTQ
+    # Domínios da CTQ
     abuso_emocional, abuso_fisico, abuso_sexual, neg_emocional, neg_fisica,
     # Itens da BSI
-    bsi1_t1, bsi2_t1, bsi4_t1, bsi5_t1,
-    # Variáveis novas
-    idtrab_t1, escol_t1, pais_internados, pais_tentativa, pais_medicacao,
-    pais_doencapsi, irmaos_doencapsi, medpsi, internacao_vida, panico_lifetime,
-    transtorno_psicotico) %>% 
+    bsi1_t1, bsi2_t1, bsi4_t1, bsi5_t1
+  ) %>% 
   dplyr::mutate(dplyr::across(c(everything(), -idade_t1_2, -idadrog_t1,
     -somabdi_t1, -somasrq_t1, -hcl_total, -abuso_emocional, -abuso_fisico, -abuso_sexual,
     -neg_emocional, -neg_fisica, -idtrab_t1), ~ factor(.x))) %>% 
@@ -107,15 +106,15 @@ ds <- ds %>% janitor::clean_names() %>%
   dplyr::mutate(dplyr::across(c(interr_t1, trabatu_t1),
     ~ tidyr::replace_na(.x, as.factor(0))))
 
-# visualizar dados
+# Dar uma olhada nos dados
 dplyr::glimpse(ds)
 
-# verificar variáveis categóricas
+# Checar variáveis categóricas
 ds %>% 
   purrr::keep(is.factor) %>% 
   summary()
 
-# verificar variáveis numéricas
+# Checar variáveis numéricas
 ds %>% 
   purrr::keep(is.numeric) %>% 
   summary()
@@ -124,57 +123,57 @@ ds %>%
 
 ### REGRESSÃO LOGÍSTICA BINOMIAL ###
 
-# colocar uma seed (do capeta)
+# Colocar seed
 set.seed(666)
 
-# rotular a variável de desfecho
+# Rotular a variável de desfecho
 ds$fast_dic <- factor(ds$fast_dic, labels=c("No", "Yes"))
 
-# particionar em matriz de treino e teste
+# Particionar em matriz de treino e teste
 partitions <- caret::createDataPartition(ds$fast_dic, p=0.75, list=FALSE)
 train_matrix <- ds[partitions,]
 test_matrix <- ds[-partitions,]
 
-# verificar proporção do desfecho nas matrizes de treino e teste
+# Verificar proporção do desfecho nas matrizes de treino e teste
 round(prop.table(table(dplyr::select(ds, fast_dic), exclude = NULL)), 4) * 100
 round(prop.table(table(dplyr::select(train_matrix, fast_dic), exclude = NULL)), 4) * 100
 round(prop.table(table(dplyr::select(test_matrix, fast_dic), exclude = NULL)), 4) * 100
 
-# treinar o modelo
+# Treinar o modelo
 model_log <- glm(data = train_matrix,
   family = binomial, 
   formula = fast_dic ~ .)
 
-# avaliar o modelo
+# Avaliar o modelo
 summary(model_log)
 
-# predições
+# Predições
 pred <- predict(model_log, test_matrix, type = "response")
 #head(pred)
 
-# dicotomizar predições
+# Dicotomizar predições
 pred_dic <- ifelse(pred >= 0.5, 1, 0)
 
-# verificar matriz de confusão
+# Verificar matriz de confusão
 pred_table <- table(test_matrix$fast_dic, pred_dic)
 pred_table 
 
-# acurácia
+# Acurácia do modelo logístico convencional
 (sum(diag(pred_table)) / nrow(test_matrix)) * 100
 
 ### ELASTIC NET ###
 
-# colocar uma seed (do capeta) novamente
+# Colocar seed novamente
 set.seed(666)
 
-# leave-one-out cv
+# Leave-One-Out CV
 #train_control <- trainControl(method="LOOCV",
 #                              savePredictions=TRUE,
 #                              classProbs=TRUE,
 #                              summaryFunction=twoClassSummary)
 
 
-# 10-fold cv repetido por 10 vezes
+# 10-Fold CV repetido por 10 vezes
 train_control <- caret::trainControl(method="repeatedcv",
   number=10,
   repeats=10,
@@ -182,14 +181,14 @@ train_control <- caret::trainControl(method="repeatedcv",
   classProbs=TRUE,
   summaryFunction=caret::twoClassSummary)
 
-# calcular os weights (pesos) para controlar quaisquer class imbalance
+# Calcular os pesos para controlar qualquer desequilíbrio de classe
 f_no = table(train_matrix$fast_dic)[1]
 f_yes = table(train_matrix$fast_dic)[2]
 w_no = (f_yes)/(f_no+f_yes)
 w_yes = (f_no)/(f_no+f_yes)
 weights <- ifelse(train_matrix$fast_dic == "No", w_no, w_yes)
 
-# treinar modelo de elastic net
+# Treinar modelo de Elastic Net
 model <- caret::train(fast_dic ~ .,
   data=train_matrix,
   trControl=train_control,
@@ -200,16 +199,17 @@ model <- caret::train(fast_dic ~ .,
 
 ### RANDOM FOREST ###
 
-# colocar uma seed (do capeta) mais uma vez
+# Colocar seed mais uma vez
 set.seed(666)
 
-# criar train control
+# 10-Fold CV repetido por 10 vezes com busca aleatória para parâmetros de tunagem
 train_control_rf <- caret::trainControl(method='repeatedcv', 
   number=10, 
   repeats=10,
   search = 'random')
 
-# treinar modelo de random forest
+# Treinar modelo de Random Forest
+# (Usando 15 como total de combinações únicas de hiperparâmetros)
 model_rf <- caret::train(fast_dic~., 
   data=train_matrix, 
   method='rf', 
@@ -217,7 +217,7 @@ model_rf <- caret::train(fast_dic~.,
   tuneLength=15, 
   trControl=train_control_rf)
 
-# matriz de confusão da random forest
+# Matriz de confusão da Random Forest
 cm_rf <- caret::confusionMatrix(predict(model_rf, test_matrix),
   test_matrix$fast_dic,
   positive="Yes")
@@ -225,16 +225,18 @@ cm_rf <- caret::confusionMatrix(predict(model_rf, test_matrix),
 
 ### RESULTADOS DA ELASTIC NET ###
 
-# criar objetos das predições
+# Criar objetos das predições
 predictions <- predict(model, test_matrix)
 predictions_prob <- predict(model, test_matrix, type="prob")
 
-# matriz de confusão
+# Matriz de confusão
 cm_glmnet <- caret::confusionMatrix(predictions,
   test_matrix$fast_dic,
   positive="Yes")
 
-# curva roc
+cm_glmnet
+
+# Curva ROC do modelo de Elastic Net
 roc_curve <- pROC::roc(
   test_matrix$fast_dic,
   predictions_prob[, 2],
@@ -242,9 +244,9 @@ roc_curve <- pROC::roc(
 #pROC::ci.auc(roc_curve)
 
 
-# verificar sinal de cada variável que tenha coeficiente absoluto maior que 0
-# calcular coeficiente da regressão usando exponencial
-# verificar maiores ou menores chances baseado em cada preditor
+# Verificar sinal de cada variável que tenha coeficiente absoluto maior que 0
+# Calcular coeficiente da regressão usando exponencial
+# Verificar maiores ou menores chances baseado em cada preditor
 coeficientes <- coef(model$finalModel, model$finalModel$lambdaOpt) %>%
   as.matrix() %>% 
   as.data.frame() %>% 
@@ -257,25 +259,27 @@ coeficientes <- coef(model$finalModel, model$finalModel$lambdaOpt) %>%
   tibble::rownames_to_column(var = "variavel")
 coeficientes
 
-# predições para cada valor do desfecho (sim e não)
+# Predições para cada valor do desfecho (sim e não)
 prepare_risk <- predictions_prob
 prepare_risk["outcome"] <- test_matrix$fast_dic
 
-# sensibilidade e especificidade
+# Sensibilidade e especificidade
 sensitivities <- data.frame(roc_curve$sensitivities)
 specificities <- data.frame(roc_curve$specificities)
 
 
 # Visualize --------------------------------------------------------------------
 
-# plotar importância das variáveis do modelo de rf
-# transformar nomes das variáveis em coluna e renomear variáveis
+### PLOTS RANDOM FOREST ###
+
+# Plotar importância das variáveis do modelo de Random Forest
+# Transformar nomes das variáveis em coluna e renomear variáveis
 importance_rf <- caret::varImp(model_rf)$importance %>% 
   tibble::rownames_to_column(var = "variable") %>% 
   dplyr::rename(importance = Overall) %>% 
   tidyr::gather(importance, value, -variable)
 
-# plot importância de variável - random forest (valores maiores que 25)
+# Plot da importância de variável - Random Forest (valores maiores que 25)
 plot_imp_rf <- ggplot2::ggplot(importance_rf[(importance_rf$value>25), ],
   ggplot2::aes(x = reorder(variable, value),
     y = value, fill = variable
@@ -301,8 +305,9 @@ plot_imp_rf <- ggplot2::ggplot(importance_rf[(importance_rf$value>25), ],
 
 plot_imp_rf
 
-# plot curva roc - random forest
+# Plot da curva ROC - Random Forest
 predictions_prob_rf <- predict(model_rf, test_matrix, type="prob")
+
 
 roc_curve_rf <- pROC::roc(
   test_matrix$fast_dic,
@@ -315,7 +320,7 @@ auc <- round(
     predictions_prob_rf[, 2]),
   3)
 
-# métricas do modelo de rf
+# Métricas do modelo de Random Forest
 round(cm_rf$byClass[[1]], 3) -> sens_rf
 round(cm_rf$byClass[[2]], 3) -> spec_rf
 round(cm_rf$byClass[[11]], 3) -> accu_rf
@@ -350,13 +355,13 @@ plot_roc_rf
 
 ### PLOTS ELASTIC NET ###
 
-# criar variável das predições, quintis e filtrar
+# Criar variável das predições, quintis e filtrar - Elastic Net
 prepare_risk <- prepare_risk %>% 
   dplyr::mutate(quintiles = factor(dplyr::ntile(Yes, 5)),
-                outcome = as.factor(outcome)) %>% 
+    outcome = as.factor(outcome)) %>% 
   dplyr::filter(outcome == "Yes")
 
-# plot quintis de predições - elastic net
+# Plot dos quintis de predições - Elastic Net
 plot_risk <- prepare_risk %>%
   ggplot2::ggplot(aes(x = quintiles, fill = quintiles)) +
   ggplot2::geom_bar(ggplot2::aes(y=(..count..)/sum(..count..))) +
@@ -373,11 +378,11 @@ plot_risk <- prepare_risk %>%
 
 plot_risk
 
-# importância das variáveis - elastic net
+# Importância das variáveis - Elastic Net
 importance <- caret::varImp(model)
 importance <- importance$importance
 
-# reformatar a base de dados para plot - elastic net
+# Reformatar a base de dados para plotagem - Elastic Net
 importance <- importance %>% 
   tibble::rownames_to_column(var = "variable") %>% 
   dplyr::rename(importance = Overall) %>% 
@@ -386,7 +391,7 @@ importance <- importance %>%
     "neg_emocional", "alcool2_t11"),
     TRUE, FALSE))
 
-# plot importância de variável - elastic net
+# Plot da importância de variável - Elastic Net
 plot_imp <- ggplot2::ggplot(importance[(importance$value>0), ],
   ggplot2::aes(x = reorder(variable, value),
     y = value,
@@ -395,11 +400,11 @@ plot_imp <- ggplot2::ggplot(importance[(importance$value>0), ],
   ggplot2::geom_col(position = "dodge") +
   ggplot2::coord_flip() +
   ggplot2::labs(y = "Importance", x = "Predictor") +
-ggplot2::scale_x_discrete(labels = c("BDI score", "Emotional negligence",
-  "Alcohol abuse/dependence", "Sex (male)", "Education (Complete high school)",
-  "Emotional abuse", "Currently studying", "Know someone who killed himself",
-  "Panic disorder (lifetime)", "Discontinued treatment", "Anhedonia",
-  "Socioeconomic status (lower)")) +
+  ggplot2::scale_x_discrete(labels = c("BDI score", "Emotional negligence",
+    "Alcohol abuse/dependence", "Sex (male)", "Education (Complete high school)",
+    "Emotional abuse", "Currently studying", "Know someone who killed himself",
+    "Panic disorder (lifetime)", "Discontinued treatment", "Anhedonia",
+    "Socioeconomic status (lower)")) +
   ggplot2::theme(axis.text = element_text(size = 15),
     axis.title = element_text(size = 15)) +
   ggplot2::theme_minimal() +
@@ -412,7 +417,7 @@ ggplot2::scale_x_discrete(labels = c("BDI score", "Emotional negligence",
 
 plot_imp
 
-# plot odds ratio - elastic net
+# Plot dos odds ratio - Elastic Net
 plot_or <- coeficientes %>% 
   ggplot(aes(y=variavel, x=or, label=variavel, color = direcao)) +
   geom_point(size=2.5, shape=19) +
@@ -435,9 +440,9 @@ plot_or <- coeficientes %>%
 
 plot_or
 
-# plot da curva roc - elastic net
+# Plot da curva ROC - Elastic Net
 
-# métricas para inserir no plot
+# Métricas para inserir no plot - Elastic Net
 round(cm_glmnet$byClass[[1]], 3) -> sens_glmnet
 round(cm_glmnet$byClass[[2]], 3) -> spec_glmnet
 round(cm_glmnet$byClass[[11]], 3) -> accu_glmnet
@@ -484,43 +489,43 @@ plot_roc
 
 ### TABELA DESCRITIVA ###
 
-# criar lista de variáveis para tabela
+# Criar lista de variáveis para tabela
 lista_variaveis <- names(ds)[-1]
 
-# criar vetor lógico de quais colunas são fatores
+# Criar vetor lógico de quais colunas são fatores
 fatores <- unlist(lapply(ds, is.factor))  
 
-# criar vetor somente com as variáveis categóricas (fatores)
+# Criar vetor somente com as variáveis categóricas (fatores)
 variaveis_categoricas <- names(ds[,fatores])[-1]
 
-# criar tabela 1 com pacote tableone
-# argumento addOverall para usar também uma coluna para amostra total
+# Criar tabela 1 com pacote tableone
+# Argumento addOverall para usar também uma coluna para amostra total
 table1 <- tableone::CreateTableOne(vars = lista_variaveis,
   data = ds,
   factorVars = variaveis_categoricas,
   strata = "fast_dic",
   addOverall = TRUE)
 
-# exibir a tabela criada
+# Jogar a tabela criada para dentro do objeto table1_print
 table1_print <- print(table1, showAllLevels = TRUE)
 
 # Export -----------------------------------------------------------------------
 
-# random forest
+# Random Forest
 ggsave("figures/plot_roc_rf.png",
   plot = plot_roc_rf, width = 2818, height = 2818, units = "px")
 
 ggsave("figures/plot_imp_rf.png",
   plot = plot_imp_rf, dpi = 300)
 
-# elastic net
+# Elastic Net
 ggplot2::ggsave("figures/plot_risk.png", plot = plot_risk, dpi = 300)
 ggplot2::ggsave("figures/plot_or.png", plot = plot_or, dpi = 300)
 ggplot2::ggsave("figures/plot_imp.png", plot = plot_imp, dpi = 300)
 ggplot2::ggsave("figures/plot_roc.png",
   plot = plot_roc, width = 2818, height = 2818, units = "px")
 
-# elastic net
+# Elastic Net
 write.csv(sensitivities, file="output/sensitivities.csv")
 
 write.csv(specificities, file="output/specificities.csv")
@@ -533,5 +538,5 @@ write.csv(importance, file="output/importance.csv")
 
 write.csv(coeficientes, file="output/oddsratio.csv")
 
-# tabela descritiva
+# Tabela descritiva
 write.csv(table1_print, file = "output/table1.csv")
