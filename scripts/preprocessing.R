@@ -9,6 +9,7 @@
 library(magrittr, include.only = "%>%")
 
 # Importação -----------------------------------------------------------------------
+
 source("scripts/functions.R")
 
 # raw <- readr::read_csv("data/coorte-t1-t2-24-08-17.csv")
@@ -130,6 +131,7 @@ ds <- raw_cleaned %>%
   dplyr::mutate(dplyr::across(c(interr_t1, trabatu_t1), ~ tidyr::replace_na(.x, as.factor(0))))
 
 # Rotular a variável de desfecho -----------------------------------------------
+
 ds$fast_dic <- factor(ds$fast_dic, labels = c("No", "Yes"))
 
 # Dar uma olhada nos dados
@@ -152,12 +154,12 @@ ds %>%
 ds <- ds %>%
   dplyr::filter(!is.na(fast_dic))
 
-# Quantidade de missing 
+# Quantidade de missing (frequência relativa)
 col_missing <- apply(ds, 2, CountMissing)
-sort(col_missing / nrow(ds), decreasing = TRUE) # frequencia relativa de missing
+sort(col_missing / nrow(ds), decreasing = TRUE)
 
 row_missing <- apply(ds, 1, CountMissing)
-sort(row_missing / ncol(ds), decreasing = TRUE) # frequencia relativa de missing
+sort(row_missing / ncol(ds), decreasing = TRUE)
 
 # Remoção de variáveis com mais de 10% de missing
 ds <- ds %>%
