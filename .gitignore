@@ -3,3 +3,6 @@
 .RData
 .Ruserdata
 data/coorte-t1-t2-24-08-17.csv
+data/coorte-t1-t2-24-08-17.sav
+sessions/*
+cache/*
