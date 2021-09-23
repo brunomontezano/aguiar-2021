@@ -1,6 +1,7 @@
-# Functions
-
-
+#' Author: Bruno Braga Montezano e Jacson Feiten
+#' Subject: Elaboração de funções definidas pelo usuário
+ 
+# Partition the data
 get_partitions <- function(dt) {
   
   # Colocar seed
@@ -13,22 +14,50 @@ get_partitions <- function(dt) {
   list(train_matrix = train_matrix, test_matrix = test_matrix)
 }
 
-# Plot ROC curve
+# Perform pre-processing by caret::preProcess and predict values
+get_preproc <- function(dts){
+  
+  preProcValues <- caret::preProcess(
+    dts$train_matrix,
+    method = c("center", "scale")
+  )
+  
+  trainTransformed <- predict(preProcValues, dts$train_matrix)
+  testTransformed <- predict(preProcValues, dts$test_matrix)
+  
+  list(train_matrix = trainTransformed, test_matrix = testTransformed)
+  
+}
 
+# Count missing values
+CountMissing <- function(x) {
+  length(x[is.na(x)])
+}
+
+# Unregister function
+unregister <- function() {
+  env <- foreach:::.foreachGlobals
+  rm(list=ls(name=env), pos=env)
+}
+
+# Show ROC curve
 showROC <- function(my_model, increasing_lgl, my_title) {
   
-  require(plotROC)
-  require(ggplot2)
-  
   refs <- my_model$finalModel$data$.outcome
-  preds <- predict(my_model$finalModel, my_model$finalModel$data, type = "response")
+  preds <- predict(
+    my_model$finalModel,
+    my_model$finalModel$data,
+    type = "response"
+  )
   
   refs <- relevel(refs, ref = "No")
   
   df <- data.frame(refs, preds)
   
-  basicplot <- ggplot(df, aes_string(d = refs, m = preds)) +
-    geom_roc(increasing = increasing_lgl)
+  basicplot <- ggplot2::ggplot(df,
+    ggplot2::aes_string(d = refs, m = preds)
+  ) +
+    plotROC::geom_roc(increasing = increasing_lgl)
   
   roc1 <- pROC::roc(df$refs, preds)
   ci_auc <- round(as.numeric(pROC::ci.auc(roc1)), 2)
@@ -38,15 +67,19 @@ showROC <- function(my_model, increasing_lgl, my_title) {
   cat(calc_auc(basicplot)$AUC, "|", pROC::ci.auc(roc1), "\n")
   
   basicplot +
-    style_roc(theme = theme_bw) +
-    ggtitle(my_title) +
-    annotate("text",
-             x = .75, y = .25,
-             label = auc_ci
+    plotROC::style_roc(theme = theme_bw) +
+    ggplot2::ggtitle(my_title) +
+    ggplot2::annotate("text",
+      x = .75,
+      y = .25,
+      label = auc_ci
     ) +
-    scale_x_continuous("1 - Specificity", breaks = seq(0, 1, by = .1))
+    ggplot2::scale_x_continuous(
+      "1 - Specificity",
+      breaks = seq(0, 1, by = .1))
 }
 
+# Show ROC curve (alternative)
 showROC2 <- function(my_model, increasing_lgl, my_title, train_data) {
   
   require(plotROC)
@@ -61,8 +94,8 @@ showROC2 <- function(my_model, increasing_lgl, my_title, train_data) {
   
   df <- data.frame(refs, preds)
   
-  basicplot <- ggplot(df, aes_string(d = refs, m = preds)) +
-    geom_roc(increasing = increasing_lgl)
+  basicplot <- ggplot2::ggplot(df, aes_string(d = refs, m = preds)) +
+    plotROC::geom_roc(increasing = increasing_lgl)
   
   roc1 <- pROC::roc(df$refs, preds)
   ci_auc <- round(as.numeric(pROC::ci.auc(roc1)), 2)
@@ -72,20 +105,28 @@ showROC2 <- function(my_model, increasing_lgl, my_title, train_data) {
   cat(calc_auc(basicplot)$AUC, "|", pROC::ci.auc(roc1), "\n")
   
   basicplot +
-    style_roc(theme = theme_bw) +
-    ggtitle(my_title) +
-    annotate("text",
-             x = .75, y = .25,
-             label = auc_ci
+    plotROC::style_roc(theme = theme_bw) +
+    ggplot2::ggtitle(my_title) +
+    ggplot2::annotate("text",
+      x = .75,
+      y = .25,
+      label = auc_ci
     ) +
-    scale_x_continuous("1 - Specificity", breaks = seq(0, 1, by = .1))
+    ggplot2::scale_x_continuous(
+      "1 - Specificity",
+      breaks = seq(0, 1, by = .1)
+    )
 }
 
-
+# Calculate ROC
 calculateROC <- function(my_model) {
   
   refs <- my_model$finalModel$data$.outcome
-  preds <- predict(my_model$finalModel, my_model$finalModel$data, type = "response")
+  preds <- predict(
+    my_model$finalModel,
+    my_model$finalModel$data,
+    type = "response"
+  )
   
   roc1 <- pROC::roc(refs, preds)
   ci_auc <- round(as.numeric(pROC::ci.auc(roc1)), 2)
@@ -96,15 +137,18 @@ calculateROC <- function(my_model) {
     upperCI = ci_auc[3]
   )
   
-  
   auc_ci
+  
 }
 
-
-
+# Get logistic regression confusion matrix
 get_logreg_cm <- function(my_model){
   
-  preds <- predict(my_model$finalModel, my_model$finalModel$data, type = "response")
+  preds <- predict(
+    my_model$finalModel,
+    my_model$finalModel$data,
+    type = "response"
+  )
   pred_dic <- ifelse(preds >= 0.5, "Yes", "No")
   
   ref <- my_model$finalModel$data$.outcome
@@ -120,6 +164,7 @@ get_logreg_cm <- function(my_model){
   
 }
 
+# Get confusion matrix for other models
 get_cm <- function(my_model, train_data, cutoff){
   
   ref <- train_data$fast_dic
@@ -137,8 +182,7 @@ get_cm <- function(my_model, train_data, cutoff){
   
 }
 
-
-
+# Get glmnet coefficients
 get_coef <- function(model){
   
   coef(model$finalModel, model$finalModel$lambdaOpt) %>%
@@ -152,4 +196,3 @@ get_coef <- function(model){
     tibble::rownames_to_column(var = "variavel")
   
 }
-
