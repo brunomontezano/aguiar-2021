@@ -1,43 +1,29 @@
-#' Author: Bruno Braga Montezano
-#' Subject: Predição de prejuízo funcional em sujeitos com transtornos de humor
+#' Author: Bruno Braga Montezano e Jacson Feiten
+#' Subject: Pré-processamento e limpeza dos dados
 
+# Versão do R 4.1 ou superior deve estar instalada
 # R version 4.1 or superior should be installed
 
-# Load libraries ---------------------------------------------------------------
+# Carregar pacotes ---------------------------------------------------------------
 
-library(magrittr)
-library(dplyr)
-library(haven)
-library(purrr)
-library(mice)
+library(magrittr, include.only = "%>%")
 
-library(glmnet)
-library(randomForest)
-
-library(gridExtra)
-
-# Import -----------------------------------------------------------------------
+# Importação -----------------------------------------------------------------------
 source("scripts/functions.R")
+
 # raw <- readr::read_csv("data/coorte-t1-t2-24-08-17.csv")
-
 raw <- haven::read_sav("data/coorte-t1-t2-24-08-17.sav")
-
-# View(raw)
-
-
 
 # Tidy -------------------------------------------------------------------------
 
 raw_cleaned <- raw %>%
   janitor::clean_names() %>%
-  mutate_at(vars(
-    a20medicpsi_t2, a30interp_t2, mini_m11b4_t2, mini_m13b2_t2,
-    mini_e06_t2, somabdi_t1, pancfo_t1
-  ), ~ as.numeric(as.character(.x)))
-
+  dplyr::mutate(dplyr::across(
+    c(a20medicpsi_t2, a30interp_t2, mini_m11b4_t2, mini_m13b2_t2,
+      mini_e06_t2, somabdi_t1, pancfo_t1),
+    ~ as.numeric(as.character(.x))))
 
 # Criar variáveis e recodificá-las ---------------------------------------------
-
 
 ds <- raw_cleaned %>%
   dplyr::filter(bipolar_conferido == 1 | depressao == 1) %>%
@@ -99,7 +85,7 @@ ds <- raw_cleaned %>%
   ))) %>%
   dplyr::mutate(
     pais_internados = dplyr::case_when(b04interna1_t2 == 1 |
-                                         b11interna2_t2 == 1 ~ 1, TRUE ~ 0),
+        b11interna2_t2 == 1 ~ 1, TRUE ~ 0),
     pais_tentativa = dplyr::case_when(b06tentsu1_t2 == 1 | b13tentsu2_t2 == 1 ~ 1, TRUE ~ 0),
     pais_medicacao = dplyr::case_when(b03med1_t2 == 1 | b10med2_t2 == 1 ~ 1, TRUE ~ 0),
     pais_doencapsi = dplyr::case_when(b01famil1_t2 == 1 | b08famil2_t2 == 1 ~ 1, TRUE ~ 0),
@@ -107,7 +93,7 @@ ds <- raw_cleaned %>%
     medpsi = dplyr::case_when(a20medicpsi_t2 == 1 ~ 1, TRUE ~ 0),
     internacao_vida = dplyr::case_when(a30interp_t2 == 1 ~ 1, TRUE ~ 0),
     transtorno_psicotico = dplyr::case_when(mini_m11b4_t2 == 1 | mini_m13a2_t2 == 1 |
-                                              mini_m13b2_t2 == 1 ~ 1, TRUE ~ 0),
+        mini_m13b2_t2 == 1 ~ 1, TRUE ~ 0),
     panico_lifetime = dplyr::case_when(mini_e06_t2 == 1 ~ 1, TRUE ~ 0),
     bdi_severo = dplyr::case_when(somabdi_t1 >= 29 ~ 1, TRUE ~ 0),
     panico_atual = dplyr::case_when(pancfo_t1 == 1 | pansfo_t1 == 1 ~ 1, TRUE ~ 0)
@@ -121,10 +107,10 @@ ds <- raw_cleaned %>%
     trabdin_t1, trabatu_t1, apoio_t1, apisepa_t1, grupeli_t1,
     trat_t1, interr_t1, idadrog_t1, forcsex_t1, parceiro_t1,
     briga_t1, pais_faleceu, aldtenta_t1, algmata_t1, familiar_tb,
-    # uso de substancias
+    # Uso de substancias
     tabaco2_t1, alcool2_t1, maconha2_t1, cocaina2_t1, crack2_t1,
     anfeta2_t1, sedativos2_t1, ilicitas2_t1,
-    # transtornos psiquiátricos
+    # Transtornos psiquiátricos
     edmat_t1, edmmel_t1, distat_t1, maniahipo_t1, agoraat_t1, panico_atual,
     fobsoa_t1, tocat_t1, teptat_t1, tagat_t1, panico_lifetime, transtorno_psicotico,
     # Itens da SRQ
@@ -143,8 +129,6 @@ ds <- raw_cleaned %>%
   ), ~ factor(.x))) %>%
   dplyr::mutate(dplyr::across(c(interr_t1, trabatu_t1), ~ tidyr::replace_na(.x, as.factor(0))))
 
-
-
 # Rotular a variável de desfecho -----------------------------------------------
 ds$fast_dic <- factor(ds$fast_dic, labels = c("No", "Yes"))
 
@@ -162,63 +146,63 @@ ds %>%
   purrr::keep(is.numeric) %>%
   summary()
 
+# Manipulação de valores ausentes ---------------------------------------------------------
 
-
-# Dealing missing data ---------------------------------------------------------
-
-# Remocao de missing data em "fast_dic"
-ds <- ds %>% filter(!is.na(fast_dic))
-
+# Remoção de missing data em "fast_dic"
+ds <- ds %>%
+  dplyr::filter(!is.na(fast_dic))
 
 # Quantidade de missing 
-
-CountMissing <- function(x) {
-  length(x[is.na(x)])
-}
-
 col_missing <- apply(ds, 2, CountMissing)
 sort(col_missing / nrow(ds), decreasing = TRUE) # frequencia relativa de missing
 
 row_missing <- apply(ds, 1, CountMissing)
 sort(row_missing / ncol(ds), decreasing = TRUE) # frequencia relativa de missing
 
+# Remoção de variáveis com mais de 10% de missing
+ds <- ds %>%
+  dplyr::select(
+    -forcsex_t1,
+    -grupeli_t1,
+    -hcl_total,
+    -idtrab_t1,
+    -idadrog_t1
+  )
 
-# Remocao de variaveis com mais de 10% de missing
-ds <- ds %>% select(-forcsex_t1, -grupeli_t1, -hcl_total, -idtrab_t1, -idadrog_t1)
+# Imputar valores ausentes -------------------------------------------------------------
 
-
-
-# Imputing missing -------------------------------------------------------------
-
-# para que o mice nao use o desfecho "fast_dic" para imputar os dados
-#   entao, fast_dic foi removida, temporariamente.
+# Para que o MICE não use o desfecho "fast_dic" para imputar os dados
+# então, fast_dic foi removida, temporariamente.
 
 fast_dic <- ds$fast_dic
 
-ds_imputed <- mice(ds %>% select(-fast_dic), m = 5, maxit = 50, method = "pmm", seed = 500)
+ds_imputed <- mice::mice(
+  ds %>% dplyr::select(-fast_dic),
+  m = 5,
+  maxit = 50,
+  method = "pmm",
+  seed = 500
+)
+
 summary(ds_imputed)
 
-ds_completed <- complete(ds_imputed, 2)
+ds_completed <- mice::complete(ds_imputed, 2)
 
 summary(ds_completed)
 
 ds_completed <- data.frame(fast_dic, ds_completed)
 
-# Dataset sem imputacao e sem missing
+# Dataset sem imputação e sem missing
 # (participantes com ao menos 1 missing foram removidos)
 
-ds_no_imputed <- ds[complete.cases(ds), ] # sera usado na analise suplementar
+ds_no_imputed <- ds[complete.cases(ds), ] # será usado na análise suplementar
 
-# Numero de participantes que tiveram um ou mais missings
+# Número de participantes que tiveram um ou mais missings
 nrow(ds_completed) - nrow(ds_no_imputed)
 
-
-
-# Export data ------------------------------------------------------------------
+# Exportar dados ------------------------------------------------------------------
 
 save.image("sessions/preprocessing.RData")
 
 saveRDS(list(ds_completed = ds_completed, ds_no_imputed = ds_no_imputed),
-        file = "cache/datasets.rds")
-
-
+  file = "cache/datasets.rds")
