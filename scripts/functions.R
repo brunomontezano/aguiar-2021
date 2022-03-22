@@ -2,12 +2,12 @@
 #' Subject: Elaboração de funções definidas pelo usuário
  
 # Partition the data
-get_partitions <- function(dt) {
+get_partitions <- function(dt, p = 0.75) {
   
   # Colocar seed
   set.seed(666)
   
-  partitions <- caret::createDataPartition(dt$fast_dic, p = 0.75, list = FALSE)
+  partitions <- caret::createDataPartition(dt$fast_dic, p = p, list = FALSE)
   train_matrix <- dt[partitions, ]
   test_matrix <- dt[-partitions, ]
   
@@ -194,5 +194,15 @@ get_coef <- function(model){
     dplyr::arrange(desc(beta)) %>%
     dplyr::mutate(direcao = ifelse(beta < 0, "Protetivo", "Risco")) %>%
     tibble::rownames_to_column(var = "variavel")
+  
+}
+
+get_mtry <- function(my_data){
+  
+  mtry_sqrt <- round(sqrt(ncol(my_data)-1))
+  print(mtry_sqrt)
+  
+  mtry_values <- seq(1, mtry_sqrt+5, by = 1)
+  mtry_values
   
 }
