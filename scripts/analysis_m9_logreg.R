@@ -18,16 +18,12 @@ source("scripts/functions.R")
 colnames(dts$ds_completed)
 str(dts$ds_completed)
 
-
-
 # Particionar em matriz de treino e teste --------------------------------------------
 parts_npp <- get_partitions(dts$ds_completed)
 
 parts <- get_preproc(parts_npp)
 
-
 set.seed(666)
-
 
 train_control <- caret::trainControl(
   method = "LOOCV",
@@ -35,9 +31,6 @@ train_control <- caret::trainControl(
   classProbs = TRUE,
   summaryFunction = caret::twoClassSummary
 )
-
-
-
 
 # M9: Logistic regression ------------------------------------------------------------
 time0 <- Sys.time()
@@ -53,12 +46,9 @@ log_reg <- caret::train(fast_dic ~ .,
                          family = "binomial"
 )
 
-
 max(log_reg$results$ROC)
 
-
 # Results ----
-
 
 # Exportar -----------------------------------------------------------------------
 #load("sessions/18032022_analysis_m9_log_reg.RData")

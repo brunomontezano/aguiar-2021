@@ -17,15 +17,12 @@ str(dts$ds_completed)
 
 dt <- dts$ds_completed
 
-
 # Removing follow-up variables -------------------------------------------------------
 dt2 <- dt %>% select(-pais_internados, -pais_medicacao, -pais_doencapsi, 
               -irmaos_doencapsi, -medpsi, -internacao_vida, -familiar_tb, 
               -panico_lifetime, -transtorno_psicotico)
 
 colnames(dt2)
-
-
 
 # Particionar em matriz de treino e teste --------------------------------------------
 parts_npp <- get_partitions(dt2)
@@ -39,8 +36,6 @@ train_control <- caret::trainControl(
   classProbs = TRUE,
   summaryFunction = caret::twoClassSummary
 )
-
-
 
 # M8: Random forest with RFE ----
 
@@ -73,13 +68,9 @@ rf_rfe <- caret::train(x = train_matrix_best[, -1],
 parallel::stopCluster(cl)
 unregister()
 
-
-
 # Results ----
 
 max(rf_rfe$results$ROC)
-
-
 
 # Exportar -----------------------------------------------------------------------
 save.image("sessions/18032022_analysis_m8.RData")

@@ -15,15 +15,10 @@ source("scripts/functions.R")
 colnames(dts$ds_completed)
 str(dts$ds_completed)
 
-
-
 # Particionar em matriz de treino e teste --------------------------------------------
 parts_npp <- get_partitions(dts$ds_completed, p = 0.5)
 
 parts <- get_preproc(parts_npp)
-
-
-
 
 # M6: Random Forest with RFE, 50/50, LOOCV -------------------------------------
 
@@ -33,7 +28,6 @@ train_control <- caret::trainControl(
   classProbs = TRUE,
   summaryFunction = caret::twoClassSummary
 )
-
 
 set.seed(2108)
 ctrl_rfe <- rfeControl(functions = rfFuncs, method = "LOOCV", verbose = FALSE)
@@ -52,7 +46,6 @@ test_matrix_best <- parts$test_matrix %>% select(c("fast_dic", lmProfile$optVari
 # mtry values
 mtry_cont <- get_mtry(train_matrix_best)
 
-
 cl <- parallel::makePSOCKcluster(3)
 doParallel::registerDoParallel(cl)
 
@@ -66,8 +59,6 @@ rf_5050_loocv <- caret::train(x = train_matrix_best[, -1],
 parallel::stopCluster(cl)
 unregister()
 
-
-
 # M7: Random Forest with RFE, 50/50, 10 FOLD repeated 10 times -------------------------------------
 
 train_control_m7 <- caret::trainControl(
@@ -78,7 +69,6 @@ train_control_m7 <- caret::trainControl(
   classProbs = TRUE,
   summaryFunction = caret::twoClassSummary
 )
-
 
 set.seed(2108)
 ctrl_rfe_m7 <- rfeControl(functions = rfFuncs, 
@@ -103,22 +93,18 @@ dim(train_matrix_best_m7)
 # mtry values
 mtry_cont <- get_mtry(train_matrix_best_m7)
 
-
 cl <- parallel::makePSOCKcluster(3)
 doParallel::registerDoParallel(cl)
 
 set.seed(666)
 rf_5050_10fold <- caret::train(x = train_matrix_best_m7[, -1],
                               y = train_matrix_best_m7$fast_dic,
-                              method = "rf", 
+                              method = "rf",
                               trControl = train_control_m7,
                               tuneGrid = expand.grid(.mtry = c(mtry_cont)))
 
 parallel::stopCluster(cl)
 unregister()
-
-
-
 
 # Results ----
 

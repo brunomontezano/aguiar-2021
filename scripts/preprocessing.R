@@ -218,11 +218,12 @@ ds <- ds %>% dplyr::mutate(dplyr::across(c(tabaco, maconha, cocaina,
 ds <- ds %>%
     dplyr::mutate(
         dplyr::across(c(alcool),
-            ~ as.factor(ifelse(.x >= 11, "moderate_risk", "low_risk")))) %>% 
+            ~ as.factor(ifelse(.x >= 11, "moderate_risk", "low_risk")))) %>%
   dplyr::mutate(dplyr::across(c(tabaco, maconha, cocaina,
                          anfetamina, inalantes, sedativos,
                          alucinogenos, opioides),
-                       ~ as.factor(ifelse(.x >= 4, "moderate_risk", "low_risk"))))
+                       ~ as.factor(ifelse(.x >= 4, "moderate_risk",
+                               "low_risk"))))
 
 drugs_df <- ds %>%
     dplyr::select(tabaco, maconha, cocaina, anfetamina, inalantes, sedativos,

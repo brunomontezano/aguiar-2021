@@ -15,13 +15,10 @@ source("scripts/functions.R")
 colnames(dts$ds_no_imputed)
 str(dts$ds_no_imputed)
 
-
-
 # Particionar em matriz de treino e teste --------------------------------------------
 parts_npp <- get_partitions(dts$ds_no_imputed)
 
 parts <- get_preproc(parts_npp)
-
 
 train_control <- caret::trainControl(
   method = "LOOCV",
@@ -29,8 +26,6 @@ train_control <- caret::trainControl(
   classProbs = TRUE,
   summaryFunction = caret::twoClassSummary
 )
-
-
 
 # M4: Random forest with RFE ----
 start_time <- Sys.time()
@@ -46,8 +41,10 @@ lmProfile <- rfe(x = parts$train_matrix[, -1],
 lmProfile
 lmProfile$optVariables
 
-train_matrix_best <- parts$train_matrix %>% select(c("fast_dic", lmProfile$optVariables))
-test_matrix_best <- parts$test_matrix %>% select(c("fast_dic", lmProfile$optVariables))
+train_matrix_best <- parts$train_matrix %>% select(c("fast_dic",
+        lmProfile$optVariables))
+test_matrix_best <- parts$test_matrix %>% select(c("fast_dic",
+        lmProfile$optVariables))
 
 mtry_cont <- get_mtry(train_matrix_best)
 
@@ -56,8 +53,8 @@ doParallel::registerDoParallel(cl)
 
 set.seed(2108)
 rf_rfe <- caret::train(x = train_matrix_best[, -1],
-                          y = train_matrix_best$fast_dic,
-                          method = "rf", 
+                        y = train_matrix_best$fast_dic,
+                        method = "rf",
                         trControl = train_control,
                         tuneGrid = expand.grid(.mtry = c(mtry_cont)))
 
@@ -90,17 +87,12 @@ end_time <- Sys.time()
 
 duration_glmnet <- end_time - start_time
 
-
-
-
-
 # Results ----
 
 rocs <- c("glmnet" = max(glmnet_model$results$ROC),
      "rf_rfe" = max(rf_rfe$results$ROC))
 
 round(rocs, 3)
-
 
 # Exportar -----------------------------------------------------------------------
 #load("sessions/15012022_analysis_75_loocv.RData")
