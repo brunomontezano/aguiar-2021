@@ -15,12 +15,15 @@ source("scripts/functions.R")
 colnames(dts$ds_completed)
 str(dts$ds_completed)
 
+
 # Particionar em matriz de treino e teste --------------------------------------------
 parts_npp <- get_partitions(dts$ds_completed)
 
 parts <- get_preproc(parts_npp)
 
+
 set.seed(666)
+
 
 train_control <- caret::trainControl(
   method = "LOOCV",
@@ -28,6 +31,8 @@ train_control <- caret::trainControl(
   classProbs = TRUE,
   summaryFunction = caret::twoClassSummary
 )
+
+
 
 # M1: Random forest with RFE ----
 
@@ -60,14 +65,16 @@ rf_cont25 <- caret::train(x = train_matrix_best[, -1],
 parallel::stopCluster(cl)
 unregister()
 
+
+
 # M2: Elastic Net ------------------------------------------------------------
 time0 <- Sys.time()
 # Train model
 set.seed(666)
-glmnet_cont <- caret::train(fast_dic ~ .,
-                            data = parts$train_matrix,
-                            method = "glmnet",
-                            trControl = train_control,
+glmnet_cont <- caret::train(fast_dic ~ ., 
+                            data = parts$train_matrix, 
+                            method = "glmnet", 
+                            trControl = train_control, 
                             family = "binomial",
                             tuneGrid = expand.grid(
                               alpha = seq(0, 1, by = 0.1),
@@ -91,7 +98,7 @@ start_time <- Sys.time()
 cl <- parallel::makePSOCKcluster(3)
 doParallel::registerDoParallel(cl)
 
-# train
+# train 
 set.seed(666)
 rf_cont <- caret::train(x = parts$train_matrix[, -1], 
                         y = parts$train_matrix$fast_dic,
@@ -99,11 +106,14 @@ rf_cont <- caret::train(x = parts$train_matrix[, -1],
                         trControl = train_control,
                         tuneGrid = expand.grid(.mtry = c(mtry_cont)))
 
+
+
 parallel::stopCluster(cl)
 
 unregister()
 
-# Results -------------
+
+# Results ----
 
 rocs <- c("glmnet_cont" = max(glmnet_cont$results$ROC),
           "rf_cont" = max(rf_cont$results$ROC),
@@ -114,9 +124,11 @@ round(rocs, 3)
 print("O MELHOR MODELO É:")
 rocs[which.max(rocs)]
 
+
 # save.image("sessions/15012022_analysis_75_loocv.RData")
 
 # Testar o melhor modelo ----------------------------------------------------------
+
 
 showROC2(rf_cont25,
          TRUE,
@@ -128,6 +140,7 @@ get_cm(
   parts$test_matrix,
   cutoff = 0.5)$byClass
 
+
 rbind(
   get_cm(rf_cont25,
          parts$test_matrix, cutoff = 0.25)$byClass,
@@ -137,19 +150,32 @@ rbind(
          parts$test_matrix, cutoff = 0.75)$byClass
 )
 
+
 # Treinar modelo de produção -------------------------------------------------------
 
-dts_all <- rbind(train_matrix_best, test_matrix_best)
+#dts_all <- rbind(train_matrix_best, test_matrix_best)
 
-preProcValues_final <- caret::preProcess(
-  dts_all,
-  method = c("center", "scale")
-)
+dt_prod <- dts$ds_completed %>% select(c("fast_dic", lmProfile$optVariables))
 
-trainTransformed_final <- predict(
-  preProcValues_final,
-  dts_all
-)
+
+#preProcValues_final <- caret::preProcess(
+ # dts_all,
+  #method = c("center", "scale")
+#)
+
+
+#trainTransformed_final <- predict(
+ # preProcValues_final,
+  #dts_all
+#)
+
+library(purrr)
+
+
+dt_prod2 <- dt_prod %>% mutate_if(is.factor, function(x){levels(x) <- make.names(levels(x)); x})
+
+
+
 
 fitControl <- caret::trainControl(
   method = "none",
@@ -158,10 +184,11 @@ fitControl <- caret::trainControl(
 
 set.seed(666)
 
-final_model <- caret::train(x = trainTransformed_final[, -1], 
-                            y = trainTransformed_final$fast_dic,
+final_model <- caret::train(x = dt_prod2[, -1], 
+                            y = dt_prod2$fast_dic,
                             method = "rf", 
                             trControl = fitControl, 
+                            preProcess = c("center", "scale"),
                             verbose = FALSE, 
                             # Somente um único modelo pode ser passado
                             # para a função quando não se usa resampling:
@@ -182,6 +209,7 @@ pred_fun = function(X.model, newdata){
   predict(X.model, newdata, type = "prob")[,2]
 }
 
+
 num_features <- ncol(final_model$trainingData)-1
 num_features
 
@@ -194,7 +222,11 @@ shapley_vip <- vip(final_model, method = "shap", num_features = 30, nsim= 500,
 
 shapley_vip$data %>% arrange(-Importance)
 
+
+
 # Exportar -----------------------------------------------------------------------
-#load("sessions/15012022_analysis_75_loocv.RData")
+load("sessions/24032022_analysis_75_loocv.RData")
 #save.image("sessions/15012022_analysis_75_loocv.RData")
-#saveRDS(final_model, file = "cache/final_model_random_forest_mtry2.rds")
+saveRDS(final_model, file = "cache/final_model_random_forest_mtry2b.rds")
+
+map(dt_prod2, levels)
