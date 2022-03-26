@@ -50,7 +50,7 @@ lmProfile$optVariables
 train_matrix_best <- parts$train_matrix %>% select(c("fast_dic", lmProfile$optVariables))
 test_matrix_best <- parts$test_matrix %>% select(c("fast_dic", lmProfile$optVariables))
 
-mtry_cont <- get_mtry(parts$train_matrix_best)
+mtry_cont <- get_mtry(train_matrix_best)
 
 cl <- parallel::makePSOCKcluster(3)
 doParallel::registerDoParallel(cl)
@@ -213,6 +213,7 @@ pred_fun = function(X.model, newdata){
 num_features <- ncol(final_model$trainingData)-1
 num_features
 
+
 shapley_vip <- vip(final_model, method = "shap", num_features = 30, nsim= 500,
                    pred_wrapper = pred_fun,
                    geom = "col", include_type = TRUE,
@@ -225,8 +226,6 @@ shapley_vip$data %>% arrange(-Importance)
 
 
 # Exportar -----------------------------------------------------------------------
-load("sessions/24032022_analysis_75_loocv.RData")
-#save.image("sessions/15012022_analysis_75_loocv.RData")
-saveRDS(final_model, file = "cache/final_model_random_forest_mtry2b.rds")
+#load("sessions/25032022_analysis_75_loocv.RData")
+#save.image("sessions/25032022_analysis_75_loocv.RData")
 
-map(dt_prod2, levels)
