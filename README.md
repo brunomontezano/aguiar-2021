@@ -3,10 +3,10 @@
 
 - O objetivo deste repositório é agregar as análises realizadas para um
 artigo entitulado "*Predicting functional impairment in patients with mood disorder: A 5-year follow-up*" de autoria de
-Kyara Rodrigues Aguiar, Bruno Braga Montezano, Jacson Gabriel Feiten e Ives Cavalcante Passos no ano de 2022 quanto a predição de sujeitos com transtornos de humor que apresentarão prejuízo funcional dentro de um intervalo de 3 anos do *baseline* ao *follow-up*.
+Kyara Rodrigues Aguiar, Bruno Braga Montezano, Jacson Gabriel Feiten e Ives Cavalcante Passos no ano de 2022 quanto a predição de sujeitos com transtornos de humor que apresentarão prejuízo funcional dentro de um intervalo de 5 anos do *baseline* ao *follow-up*.
 
 - The purpose of this repository is to aggregate the analyzes performed for a paper regarding the prediction of subjects with mood disorders
-who will present functional impairment within a 3-year interval from *baseline* to *follow-up*. 
+who will present functional impairment within a 5-year interval from *baseline* to *follow-up*. 
 
 -----
 
