@@ -5,7 +5,7 @@ library(tibble)
 
 getwd()
 
-model.list <- readRDS(file = "../../cache/final_model_random_forest_mtry2c.rds")
+model.list <- readRDS(file = "data/final_model_random_forest_mtry2c.rds")
 
 #x <- readRDS(file = "data/rf_fast_impairment_data.rds")
 
@@ -33,7 +33,7 @@ mdel <- model.list$rf.model
 ui <- fluidPage(
 
   # App title ----
-  titlePanel("Risk calculator for functional impairment"),
+  titlePanel("Risk calculator for functional impairment in subjects with mood disorder"),
 
   # Sidebar layout with input and output definitions ----
   sidebarLayout(
@@ -47,15 +47,15 @@ ui <- fluidPage(
                 sliderInput(
                     "abuso_emocional",
                     label = "Emotional abuse (assessed by CTQ)",
-                    min = 1, max = 110, value = 18),
+                    min = 1, max = 25, value = 18),
                 sliderInput(
                     "somasrq_t1",
                     label = "Self-Regulation Questionnaire score",
-                    min = 1, max = 110, value = 18),
+                    min = 1, max = 20, value = 10),
                 sliderInput(
                     "neg_fisica",
                     label = "Physical negligence (assessed by CTQ)",
-                    min = 1, max = 110, value = 18),
+                    min = 1, max = 25, value = 18),
                 selectInput(
                     "escol_t1",
                     label = "Education level",
@@ -70,7 +70,7 @@ ui <- fluidPage(
                 sliderInput(
                     "neg_emocional",
                     label = "Emotional negligence (assessed by CTQ)",
-                    min = 1, max = 110, value = 18),
+                    min = 1, max = 25, value = 18),
                 selectInput(
                     "trat_t1",
                     label = "Have you ever had psychological or psychiatric treatment?",
@@ -78,7 +78,7 @@ ui <- fluidPage(
                 sliderInput(
                     "somabdi_t1",
                     label = "Beck Depression Inventory total score",
-                    min = 1, max = 110, value = 18),
+                    min = 1, max = 63, value = 20),
                 selectInput(
                     "abep3_t1",
                     label = "Socioeconomic status",
@@ -97,7 +97,7 @@ ui <- fluidPage(
                 sliderInput(
                     "abuso_sexual",
                     label = "Sexual abuse (assessed by CTQ)",
-                    min = 1, max = 110, value = 18),
+                    min = 1, max = 25, value = 18),
                 selectInput(
                     "briga_t1",
                     label = "Have you ever engaged in a physical fight?",
@@ -153,7 +153,7 @@ ui <- fluidPage(
                 sliderInput(
                     "abuso_fisico",
                     label = "Physical abuse (assessed by CTQ)",
-                    min = 1, max = 110, value = 18),
+                    min = 1, max = 25, value = 18),
                 selectInput(
                     "religdic_t1",
                     label = "Do you follow a religion?",
@@ -172,9 +172,15 @@ ui <- fluidPage(
 
     # Main panel for displaying outputs ----
     mainPanel(
-      p("Esta aplicação somente deve ser usada para fins educacionais e de pesquisa. 
-      Nesta versão é possível alterar as trinta variáveis restantes após remoção recursiva de variáveis."),
-      a("Clique para mais informações.", href = "https://osf.io/msbuk/"),
+      h3("Authors: Kyara Rodrigues Aguiar, Bruno Braga Montezano, Jacson Gabriel Feiten, Ives Cavalcante Passos"),
+      h3("Affiliation: Department of Psychiatry and Behavioral Sciences, Federal University of Rio Grande do Sul, Brazil"),
+      br(),
+      p(
+        "This application should only be used for educational and research purposes."),
+      p("In this version it is possible to change the values of the remaining thirty variables after recursive feature selection."),
+      a("Click here to access the Open Science Framework repository.", href = "https://osf.io/msbuk/"),
+      br(),
+      a("Click here to access the GitHub repository containing the code.", href = "https://github.com/brunomontezano/predicting-functional-impairment/"),
       # Output: Table summarizing the values entered ----
       plotOutput("result")
 
@@ -250,7 +256,7 @@ server <- function(input, output) {
 
     Probabilidade <- predict(mdel, input.newx,  type = "prob")
     print(Probabilidade)
-    Probabilidade <- as.numeric(Probabilidade[, 2])
+    Probabilidade <- as.numeric(Probabilidade[, 1])
     Probabilidade
 
     #Impairment <- ifelse(Probabilidade > 0.5, "Sim", "Não")
