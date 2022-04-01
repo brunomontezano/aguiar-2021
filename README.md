@@ -1,4 +1,5 @@
-# Predição de prejuízo funcional em sujeitos com transtornos de humor após 3 anos / Prediction of functional impairment in subjects with mood disorders after 3 years
+# Predicting functional impairment in patients with mood disorder: A 5-year follow-up
+
 
 - O objetivo deste repositório é agregar as análises realizadas para um
 artigo entitulado "*Predicting functional impairment in patients with mood disorder: A 5-year follow-up*" de autoria de
