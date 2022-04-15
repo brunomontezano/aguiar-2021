@@ -22,6 +22,9 @@ source("scripts/functions.R")
 
 raw <- haven::read_sav("data/coorte-t1-t2-24-08-17.sav")
 
+#filtrada <- raw |>
+#    dplyr::filter(Bipolar_conferido == 1 | depressao == 1)
+
 # View(raw)
 
 
