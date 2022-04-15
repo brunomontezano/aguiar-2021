@@ -172,7 +172,7 @@ ui <- fluidPage(
 
     # Main panel for displaying outputs ----
     mainPanel(
-      h3("Authors: Kyara Rodrigues Aguiar, Bruno Braga Montezano, Jacson Gabriel Feiten, Ives Cavalcante Passos"),
+      h3("Authors: Kyara Rodrigues Aguiar, Bruno Braga Montezano, Jacson Gabriel Feiten, Karen Jansen, Ives Cavalcante Passos"),
       h3("Affiliation: Department of Psychiatry and Behavioral Sciences, Federal University of Rio Grande do Sul, Brazil"),
       br(),
       p(
