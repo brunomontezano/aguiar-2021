@@ -16,13 +16,12 @@ colnames(dts$ds_completed)
 str(dts$ds_completed)
 
 
+
 # Particionar em matriz de treino e teste --------------------------------------------
 parts_npp <- get_partitions(dts$ds_completed)
 
-parts <- get_preproc(parts_npp)
+#parts <- get_preproc(parts_npp)
 
-
-set.seed(666)
 
 
 train_control <- caret::trainControl(
@@ -32,33 +31,34 @@ train_control <- caret::trainControl(
   summaryFunction = caret::twoClassSummary
 )
 
-
+summary(parts_npp$train_matrix)
 
 # M1: Random forest with RFE ----
 
-set.seed(2108)
+set.seed(1234)
 ctrl_rfe <- rfeControl(functions = rfFuncs, method = "LOOCV", verbose = FALSE)
 
-lmProfile <- rfe(x = parts$train_matrix[, -1],
-                 y = parts$train_matrix$fast_dic, 
+lmProfile <- rfe(x = parts_npp$train_matrix[, -1],
+                 y = parts_npp$train_matrix$fast_dic, 
                  sizes = c(5, 10, 15, 20, 25, 30), 
                  rfeControl = ctrl_rfe)
 
 lmProfile
 lmProfile$optVariables
 
-train_matrix_best <- parts$train_matrix %>% select(c("fast_dic", lmProfile$optVariables))
-test_matrix_best <- parts$test_matrix %>% select(c("fast_dic", lmProfile$optVariables))
+train_matrix_best <- parts_npp$train_matrix %>% select(c("fast_dic", lmProfile$optVariables))
+test_matrix_best <- parts_npp$test_matrix %>% select(c("fast_dic", lmProfile$optVariables))
 
 mtry_cont <- get_mtry(train_matrix_best)
 
 cl <- parallel::makePSOCKcluster(3)
 doParallel::registerDoParallel(cl)
 
-set.seed(666)
+set.seed(1234)
 rf_cont25 <- caret::train(x = train_matrix_best[, -1],
                           y = train_matrix_best$fast_dic,
-                          method = "rf", 
+                          method = "rf",
+                          preProcess = c("center", "scale"),
                           trControl = train_control,
                           tuneGrid = expand.grid(.mtry = c(mtry_cont)))
 
@@ -70,10 +70,11 @@ unregister()
 # M2: Elastic Net ------------------------------------------------------------
 time0 <- Sys.time()
 # Train model
-set.seed(666)
+set.seed(1234)
 glmnet_cont <- caret::train(fast_dic ~ ., 
-                            data = parts$train_matrix, 
-                            method = "glmnet", 
+                            data = parts_npp$train_matrix, 
+                            method = "glmnet",
+                            preProcess = c("center", "scale"),
                             trControl = train_control, 
                             family = "binomial",
                             tuneGrid = expand.grid(
@@ -99,10 +100,11 @@ cl <- parallel::makePSOCKcluster(3)
 doParallel::registerDoParallel(cl)
 
 # train 
-set.seed(666)
-rf_cont <- caret::train(x = parts$train_matrix[, -1], 
-                        y = parts$train_matrix$fast_dic,
+set.seed(1234)
+rf_cont <- caret::train(x = parts_npp$train_matrix[, -1], 
+                        y = parts_npp$train_matrix$fast_dic,
                         method = "rf", 
+                        preProcess = c("center", "scale"),
                         trControl = train_control,
                         tuneGrid = expand.grid(.mtry = c(mtry_cont)))
 
@@ -125,29 +127,27 @@ print("O MELHOR MODELO É:")
 rocs[which.max(rocs)]
 
 
-# save.image("sessions/15012022_analysis_75_loocv.RData")
-
 # Testar o melhor modelo ----------------------------------------------------------
 
 
 showROC2(rf_cont25,
          TRUE,
          "RF with imputation - test set",
-         parts$test_matrix)
+         parts_npp$test_matrix)
 
 get_cm(
   rf_cont25,
-  parts$test_matrix,
+  parts_npp$test_matrix,
   cutoff = 0.5)$byClass
 
 
 rbind(
   get_cm(rf_cont25,
-         parts$test_matrix, cutoff = 0.25)$byClass,
+         parts_npp$test_matrix, cutoff = 0.25)$byClass,
   get_cm(rf_cont25,
-         parts$test_matrix, cutoff = 0.5)$byClass,
+         parts_npp$test_matrix, cutoff = 0.5)$byClass,
   get_cm(rf_cont25,
-         parts$test_matrix, cutoff = 0.75)$byClass
+         parts_npp$test_matrix, cutoff = 0.75)$byClass
 )
 
 
@@ -157,6 +157,9 @@ rbind(
 
 dt_prod <- dts$ds_completed %>% select(c("fast_dic", lmProfile$optVariables))
 
+lmProfile$optVariables
+
+dim(dt_prod)
 
 #preProcValues_final <- caret::preProcess(
  # dts_all,
@@ -182,7 +185,7 @@ fitControl <- caret::trainControl(
   classProbs = TRUE,
   summaryFunction = caret::twoClassSummary)
 
-set.seed(666)
+set.seed(1234)
 
 final_model <- caret::train(x = dt_prod2[, -1], 
                             y = dt_prod2$fast_dic,
@@ -201,6 +204,7 @@ final_model
 rf_cont25$bestTune$mtry
 
 # Shapley values ----
+
 library(vip)
 
 # metric = "auc", pred_wrapper = pfun
@@ -213,6 +217,12 @@ pred_fun = function(X.model, newdata){
 num_features <- ncol(final_model$trainingData)-1
 num_features
 
+library(vip)
+library(ggplot2)
+
+
+set.seed(1234)
+
 
 shapley_vip <- vip(final_model, method = "shap", num_features = 30, nsim= 500,
                    pred_wrapper = pred_fun,
@@ -221,11 +231,11 @@ shapley_vip <- vip(final_model, method = "shap", num_features = 30, nsim= 500,
                    aesthetics = list(color = "grey35")) + 
   ggtitle("Outcome: Functional Impairment")
 
-shapley_vip$data %>% arrange(-Importance)
+shapley_vip$data %>% dplyr::arrange(-Importance)
 
-
+beepr::beep()
 
 # Exportar -----------------------------------------------------------------------
-#load("sessions/25032022_analysis_75_loocv.RData")
-#save.image("sessions/25032022_analysis_75_loocv.RData")
+#load("sessions/01052022_analysis_75_loocv.RData")
+save.image("sessions/01052022_analysis_75_loocv.RData")
 
