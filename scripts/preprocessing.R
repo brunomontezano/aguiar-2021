@@ -22,10 +22,82 @@ source("scripts/functions.R")
 
 raw <- haven::read_sav("data/coorte-t1-t2-24-08-17.sav")
 
-#filtrada <- raw |>
-#    dplyr::filter(Bipolar_conferido == 1 | depressao == 1)
+# Define who has current disorder ----------------------------------------------
 
-# View(raw)
+df <- raw %>% dplyr::filter(Bipolar_conferido == 1 | depressao == 1)
+
+df2 <- df %>% select(FAST_sum_t2, MADRS_sum_t2, YMRS_sum_t2, 
+                     miniA08AT_t2, miniA08ATPA_t2, 
+                     miniA09AT_t2, miniA10AT_t2, 
+                     miniD06AT_t2, miniD07AT_t2, 
+                     # miniD08AT_t2, 
+                     # miniD09AT_t2
+)
+
+
+df_passado <- df %>%  filter(!is.na(FAST_sum_t2)) %>% 
+  select(miniA08PS_t2, miniA08ATPP_t2, 
+         miniA09PS_t2, miniA10PS_t2, 
+         miniD06PS_t2, miniD07PS_t2)
+
+participants_with_past_episode <- df_passado %>% apply(1, sum) > 0
+table(participants_with_past_episode)
+
+
+
+
+freq_list <- df %>% filter(!is.na(FAST_sum_t2)) %>%
+  select(miniA08PS_t2, miniA08ATPP_t2, miniA09PS_t2, miniA10PS_t2, miniD06PS_t2, miniD07PS_t2,
+         miniA08AT_t2, miniA08ATPA_t2, 
+         miniA09AT_t2, miniA10AT_t2, 
+         miniD06AT_t2, miniD07AT_t2) %>% map(table)
+
+names(freq_list) <- c("Episódio Depressivo Maior Passado",
+                      "Episódio Depressivo Atípico (Depressão Atípica) Passado",
+                      "Episódio Depressivo Maior Passado devido à condição médica geral",
+                      "Episódio Depressivo Maior Passado induzido por substância",
+                      "Episódio Hipomaníaco Passado",
+                      "Episódio Maníaco Passado",
+                      "Episódio Depressivo Maior Atual",
+                      "Episódio Depressivo Atípico (Depressão Atípica) Atual",
+                      "Episódio Depressivo Maior Atual devido à condição médica geral",
+                      "Episódio Depressivo Maior Atual induzido por substância",
+                      "Episódio Hipomaníaco Atual",
+                      "Episódio Maníaco Atual"
+)
+
+
+freq_list
+
+
+
+df2 <- df2 %>% filter(!is.na(FAST_sum_t2))
+
+
+# Remover do data set pessoas em episódio depressivo atual, maníaco atual ou hipomaníaco no tempo 2
+summary(df2 %>% mutate_all(as.factor))
+
+heatmap_df <- df2 %>% select(-FAST_sum_t2, -MADRS_sum_t2, -YMRS_sum_t2)
+
+participants_without_current_episode <- apply(heatmap_df, 1, sum) == 0
+
+current_mdd <- df2 %>% 
+  select(miniA08AT_t2, miniA08ATPA_t2, miniA09AT_t2, miniA10AT_t2) %>% 
+  apply(1, sum) > 0
+
+current_bd <- df2 %>% 
+  select(miniD06AT_t2, miniD07AT_t2) %>% 
+  apply(1, sum) > 0
+
+table(current_mdd)
+table(current_bd)
+
+table(current_mdd, current_bd)
+
+table(apply(heatmap_df, 1, sum))
+
+
+table(participants_without_current_episode)
 
 
 
@@ -204,9 +276,6 @@ ds <- ds %>% dplyr::mutate(dplyr::across(c(alcool), ~as.factor(ifelse(.x >= 11, 
 drugs_df <- ds %>% dplyr::select(tabaco, maconha, cocaina,
                                  anfetamina, inalantes, sedativos, alucinogenos, opioides, alcool)
 
-
-
-
 ds$any_ilicit_drug <- apply(ds %>% select(maconha, cocaina, 
                     anfetamina, inalantes, sedativos, 
                     alucinogenos, opioides), 1, function(x){any(x == "moderate_risk")})
@@ -225,7 +294,7 @@ table(is.na(ds$any_ilicit_drug))
 
 str(ds)
 
-ds$fast_dic
+table(ds$fast_dic)
 
 # Rotular a variável de desfecho -----------------------------------------------
 
@@ -237,6 +306,8 @@ fast <- forcats::fct_recode(ds$fast_dic,
 fast <- relevel(fast, ref = "No")
 
 ds$fast_dic <- fast
+
+table(ds$fast_dic)
 
 # Dar uma olhada nos dados
 dplyr::glimpse(ds)
@@ -263,6 +334,11 @@ table(is.na(ds$fast_dic))
 
 
 ds <- ds %>% filter(!is.na(fast_dic))
+ds <- ds %>% filter(participants_without_current_episode)
+
+participants_without_current_episode
+
+dim(ds)
 
 
 # Quantidade de missing 
@@ -309,7 +385,7 @@ nrow(ds_completed) - nrow(ds_no_imputed)
 
 
 # Export data ------------------------------------------------------------------
-
+#load("sessions/preprocessing.RData")
 save.image("sessions/preprocessing.RData")
 
 saveRDS(list(ds_completed = ds_completed, ds_no_imputed = ds_no_imputed),
