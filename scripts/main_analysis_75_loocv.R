@@ -224,12 +224,55 @@ library(ggplot2)
 set.seed(1234)
 
 
-shapley_vip <- vip(final_model, method = "shap", num_features = 30, nsim= 500,
-                   pred_wrapper = pred_fun,
-                   geom = "col", include_type = TRUE,
-                   mapping = aes_string(fill = "Variable"), 
-                   aesthetics = list(color = "grey35")) + 
+shapley_vip <- vip(
+  final_model,
+  method = "shap",
+  num_features = 30,
+  nsim= 500,
+  pred_wrapper = pred_fun,
+  geom = "col", include_type = TRUE,
+  mapping = aes_string(fill = "Variable"), 
+  aesthetics = list(color = "grey35")) + 
   ggtitle("Outcome: Functional Impairment")
+
+shapley_vip +
+  ggplot2::scale_x_discrete(
+    labels = c(
+      "Psychotic disorder",
+      "Has worked for money",
+      "Item 4 (BSI)",
+      "Parents have been hospitalized for psychiatric reasons",
+      "Parents passed away",
+      "Current agoraphobia",
+      "Siblings had psychiatric disease",
+      "Melancholic depressive episode",
+      "Has religion",
+      "Alcohol or tobacco use",
+      "Panic disorder (lifetime)",
+      "Item 1 (BSI)",
+      "Sexual abuse",
+      "Major depressive episode",
+      "Had psychological or psychiatric treatment",
+      "Sex",
+      "Has a partner",
+      "Age",
+      "Studying in current year",
+      "Knows someone who killed themselves",
+      "Item 11 (SRQ)",
+      "Interrupted treatment before completion",
+      "Socioeconomic status",
+      "Takes psychiatric medication",
+      "Emotional negligence",
+      "Education",
+      "BDI score",
+      "Physical negligence",
+      "Emotional abuse",
+      "SRQ score"
+      )) +
+  ggplot2::labs(x = "", y = "Variable importance") +
+  ggnuplot::theme_gnuplot(base_size = 20) +
+  ggplot2::scale_fill_manual(values = rep("#b31b1b", 30)) +
+  ggplot2::theme(legend.position = "none")
 
 shapley_vip$data %>% dplyr::arrange(-Importance)
 
