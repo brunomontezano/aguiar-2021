@@ -26,6 +26,8 @@ raw <- haven::read_sav("data/coorte-t1-t2-24-08-17.sav")
 
 df <- raw %>% dplyr::filter(Bipolar_conferido == 1 | depressao == 1)
 
+df$idadrog_t1
+
 df2 <- df %>% select(FAST_sum_t2, MADRS_sum_t2, YMRS_sum_t2, 
                      miniA08AT_t2, miniA08ATPA_t2, 
                      miniA09AT_t2, miniA10AT_t2, 
@@ -42,8 +44,6 @@ df_passado <- df %>%  filter(!is.na(FAST_sum_t2)) %>%
 
 participants_with_past_episode <- df_passado %>% apply(1, sum) > 0
 table(participants_with_past_episode)
-
-
 
 
 freq_list <- df %>% filter(!is.na(FAST_sum_t2)) %>%
@@ -279,6 +279,7 @@ drugs_df <- ds %>% dplyr::select(tabaco, maconha, cocaina,
 ds$any_ilicit_drug <- apply(ds %>% select(maconha, cocaina, 
                     anfetamina, inalantes, sedativos, 
                     alucinogenos, opioides), 1, function(x){any(x == "moderate_risk")})
+
 ds$any_ilicit_drug <- as.factor(ifelse(ds$any_ilicit_drug, "Yes", "No"))
 
 
@@ -307,6 +308,29 @@ fast <- relevel(fast, ref = "No")
 
 ds$fast_dic <- fast
 
+
+
+dt2 <- ds %>% mutate_if(is.factor, function(x){levels(x) <- make.names(levels(x)); x})
+head(dt2)
+str(dt2)
+
+dt2$escol_t1 <- relevel(dt2$escol_t1, ref = "X1")
+dt2$abep3_t1 <- relevel(dt2$abep3_t1, ref = "X1")
+dt2$pais_medicacao <- relevel(dt2$pais_medicacao, ref = "X0")
+dt2$pais_doencapsi <- relevel(dt2$pais_doencapsi, ref = "X0")
+dt2$medpsi <- relevel(dt2$medpsi, ref = "X0")
+dt2$trabdin_t1 <- relevel(dt2$trabdin_t1, ref = "X0")
+dt2$apoio_t1 <- relevel(dt2$apoio_t1, ref = "X0")
+dt2$trat_t1 <- relevel(dt2$trat_t1, ref = "X0")
+dt2$interr_t1 <- relevel(dt2$interr_t1, ref = "X0")
+dt2$aldtenta_t1 <- relevel(dt2$aldtenta_t1, ref = "X0")
+dt2$familiar_tb <- relevel(dt2$familiar_tb, ref = "X0")
+dt2$maniahipo_t1 <- relevel(dt2$maniahipo_t1, ref = "X0")
+dt2$tagat_t1 <- relevel(dt2$tagat_t1, ref = "X0")
+dt2$srq11_t1 <- relevel(dt2$srq11_t1, ref = "X0")
+
+ds <- dt2
+
 table(ds$fast_dic)
 
 # Dar uma olhada nos dados
@@ -324,7 +348,9 @@ ds %>%
   purrr::keep(is.numeric) %>%
   summary()
 
-
+# Fixing idadrog_t1
+#cond_idadrog <- ifelse(ds$any_ilicit_drug == "No" & ds$alcool_ou_tabaco == "No", TRUE, FALSE)
+#ds$idadrog_t1[cond_idadrog] <- 0
 
 # Dealing missing data ---------------------------------------------------------
 
@@ -334,11 +360,10 @@ table(is.na(ds$fast_dic))
 
 
 ds <- ds %>% filter(!is.na(fast_dic))
-ds <- ds %>% filter(participants_without_current_episode)
 
-participants_without_current_episode
+table(participants_without_current_episode)
 
-dim(ds)
+ds <- ds[participants_without_current_episode, ]
 
 
 # Quantidade de missing 
@@ -354,8 +379,9 @@ row_missing <- apply(ds, 1, CountMissing)
 sort(row_missing / ncol(ds), decreasing = TRUE) # frequencia relativa de missing
 
 
+
 # Remocao de variaveis com mais de 10% de missing
-ds <- ds %>% select(-forcsex_t1, -grupeli_t1, -hcl_total, -idtrab_t1, -idadrog_t1)
+ds <- ds %>% select(-forcsex_t1, -grupeli_t1, -hcl_total, -idtrab_t1)
 
 
 
