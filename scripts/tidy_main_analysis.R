@@ -1,7 +1,7 @@
 #' Author: Bruno Braga Montezano e Jacson Feiten
 #' Subject: Treinamento de modelos e avaliação de resultados
 
-# USAR VERSAO 4.2
+# USAR VERSAO 4.2 do R
 
 
 library(dplyr)
@@ -20,14 +20,10 @@ source("scripts/functions.R")
 
 dt2 <- dts$ds_completed
 
-#dt$soma_bdi_srq_t1 <- dt$somabdi_t1 + dt$somasrq_t1
-#dt <- dt %>% select(-somabdi_t1, -somasrq_t1)
-
 dim(dt2)
 colnames(dt2)
 nrow(dt2)
 str(dt2)
-
 
 #write.csv(dt2, file = "cache/dt2.csv")
 
@@ -38,15 +34,20 @@ dim(dt2)
 
 fast_dic <- dt2$fast_dic
 
+
+
 dt_dummy <- data.frame(fast_dic,
-                       predict(dummyVars(fast_dic ~., dt2, fullRank = TRUE), dt2))
+                       predict(dummyVars(fast_dic ~., dt2, fullRank = TRUE), 
+                               dt2))
+
+
 
 #write.csv(dt_dummy, file = "cache/dt_dummy.csv")
 
-
-
 dt3 <- tibble(dt2)
 dt3
+
+
 
 # Particionar em treino e teste ------------------------------------------------
 
@@ -57,45 +58,52 @@ dt_train <- training(splits)
 dt_test  <- testing(splits)
 
 
+
 # training set proportions by fast
 dt_train %>% 
   count(fast_dic) %>% 
   mutate(prop = n/sum(n))
-#> # A tibble: 2 × 3
-#>   children     n   prop
-#>   <fct>    <int>  <dbl>
-#> 1 children  3027 0.0807
-#> 2 none     34473 0.919
+
+
 
 # test set proportions by fast
 dt_test  %>% 
   count(fast_dic) %>% 
   mutate(prop = n/sum(n))
 
+
+
 # recipes ---------------------------------------------
 
 my_recipe <- 
   recipe(fast_dic ~ ., data = dt_train) %>%
-  step_normalize(all_predictors(), -all_nominal()) %>%
-  step_dummy(all_predictors(), -fast_dic)
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>%
+  step_rose(fast_dic)
+
 
 preprocessed <- prep(my_recipe)
-
 juice(preprocessed)
 
 
-my_recipe_boruta <- 
+my_recipe_forests <- 
   recipe(fast_dic ~ ., data = dt_train) %>%
-  step_normalize(all_predictors(), -all_nominal()) %>%
-  step_dummy(all_predictors(), -fast_dic) %>% 
-  step_select_boruta(all_predictors(), outcome = "fast_dic")
+  step_normalize(all_numeric_predictors()) %>%
+  step_dummy(all_nominal_predictors()) %>% 
+  step_select_forests(all_predictors(), 
+                      outcome = "fast_dic",
+                      top_p = 25
+                      ) %>%
+  step_rose(fast_dic)
+
+
 
 
 # folds ----------------------------------------------
 
 set.seed(123)
 
-folds <- vfold_cv(dt_train, v = 10, repeats = 10)
+folds <- vfold_cv(dt_train, v = 10, repeats = 5, strata = fast_dic)
 folds
 
 
@@ -110,14 +118,14 @@ log_model <-
 
 glmnet_grid <- grid_regular(mixture(),
                           penalty(),
-                          levels = 50)
+                          levels = 10)
 
 
 
 # Random forest models
 rf_model <-
   rand_forest(
-    mode = "regression",
+    mode = "classification",
     mtry = tune(),
     trees = tune()
   ) %>%
@@ -130,21 +138,13 @@ rf_model <-
 lg_wf <- 
   workflow() %>%
   add_recipe(my_recipe) %>%
-  add_model(log_model) %>%
-  step_rose(fast_dic)
+  add_model(log_model)
 
-lg_boruta_wf <- 
+
+rf_forests_wf <- 
   workflow() %>%
-  add_recipe(my_recipe_boruta) %>%
-  add_model(log_model) %>%
-  step_rose(fast_dic)
-
-
-# RF workflow
-rf_wf <- 
-  workflow() %>%
-  add_recipe(my_recipe_boruta) %>%
-  add_model(rf_mod) %>% 
+  add_recipe(my_recipe_forests) %>%
+  add_model(rf_model) %>%
   step_rose(fast_dic)
 
 
@@ -162,80 +162,50 @@ lg_res <- lg_wf %>%
 lg_res %>% 
   collect_metrics()
 
-rlang::last_error()
-
-
-set.seed(123)
-
-
-lg_boruta_res <- lg_boruta_wf %>%
-  tune_grid(
-    resamples = folds,
-    grid = glmnet_grid
-  )
-
-lg_boruta_res %>% 
-  collect_metrics()
-
-
-
-set.seed(100) # Important!
-
-rf_res <-
-  rf_wf %>% 
-  tune_grid(resamples = folds)
-
-
-rf_res %>% 
-  collect_metrics()
-
-
-# Best model of each method ----------------------------------------------------
-
-
 lg_res %>%
   show_best("roc_auc")
 
 
-rf_res %>%
+
+set.seed(123) 
+
+rf_forests_res <-
+  rf_forests_wf %>% 
+  tune_grid(resamples = folds)
+
+
+rf_forests_res %>% 
+  collect_metrics()
+
+
+rf_forests_res %>%
   show_best("roc_auc")
 
-lg_boruta_res %>%
-  show_best("roc_auc")
+
+# Best model of each method ----------------------------------------------------
 
 best_glmnet <- lg_res %>%
   select_best("roc_auc")
 
 best_glmnet
 
-best_boruta_glmnet <- lg_boruta_res %>%
+
+best_rf <- rf_forests_res %>%
   select_best("roc_auc")
 
 
-best_rf <- rf_res %>%
-  select_best("roc_auc")
 
 
-# Compare models using resamples -----------------------------------------------
-# TO DO: ADICIONAR COMPARACAO DE MODELOS
+# Instance best model
 
-
-# DETERMINAR O MELHOR E COLOCAR ABAIXO
-
-# PROVAVELMENTE
-best_wf <- lg_boruta_wf # por exemplo
-best_model <- best_boruta_glmnet # por exemplo
+best_wf <- rf_forests_wf
+best_model <- best_rf 
 
 # Final workflow ---------------------------------------------------------------
 
 final_wf <- 
-  lg_boruta_wf %>% 
-  finalize_workflow(best_boruta_glmnet)
-
-
-
-# Compare models ---------------------------------------------------------------
-
+  best_wf %>% 
+  finalize_workflow(best_model)
 
 
 # Final fit --------------------------------------------------------------------
@@ -256,16 +226,17 @@ final_fit %>%
   autoplot()
 
 
-final_glmnet <- extract_workflow(final_fit)
-final_glmnet
+final_model <- extract_workflow(final_fit)
+final_model
 
-tidy(final_glmnet) %>% arrange(-estimate) %>% View()
+final_fit %>% 
+  extract_fit_parsnip() %>% 
+  vip::vip(num_features = 25)
 
-lg_res %>%
-  show_best("roc_auc")
+tidy(final_model) %>% arrange(-estimate) %>% View()
 
 #https://www.tidymodels.org/start/tuning/#tuning
 # https://www.tmwr.org/performance.html
 
-save.image("sessions/05052022_analysis_75_loocv.RData")
+save.image("sessions/tidy_main_analysis.RData")
 
