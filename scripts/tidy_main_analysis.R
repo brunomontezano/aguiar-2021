@@ -11,7 +11,7 @@ library(rsample)
 library(themis)
 library(tidymodels)
 library(recipeselectors)
-library(Boruta)
+
 
 # Carregar dados --------------------------------------------------------------------
 
@@ -19,6 +19,8 @@ dts <- readRDS(file = "cache/datasets.rds")
 source("scripts/functions.R")
 
 dt2 <- dts$ds_completed
+
+View(dt2)
 
 dim(dt2)
 colnames(dt2)
@@ -33,8 +35,7 @@ str(dt2)
 dim(dt2)
 
 fast_dic <- dt2$fast_dic
-
-
+table(dt2$fast_dic)
 
 dt_dummy <- data.frame(fast_dic,
                        predict(dummyVars(fast_dic ~., dt2, fullRank = TRUE), 
@@ -57,6 +58,8 @@ splits <- initial_split(dt3, strata = fast_dic)
 dt_train <- training(splits)
 dt_test  <- testing(splits)
 
+dim(dt_train)
+dim(dt_test)
 
 
 # training set proportions by fast
@@ -208,6 +211,7 @@ final_wf <-
   finalize_workflow(best_model)
 
 
+
 # Final fit --------------------------------------------------------------------
 
 final_wf
@@ -219,11 +223,55 @@ final_fit <-
 final_fit %>%
   collect_metrics()
 
+final_fit %>% 
+  collect_predictions() %>% 
+  conf_mat(truth = fast_dic, estimate = .pred_class)
+
+
+# Performance metrics ----
+
+perf_cutoff_res <- map(seq(0.1, 0.9, by = 0.1), mdl = final_fit, get_perf_by_cutoff) %>% bind_rows()
+perf_cutoff_res <- round(perf_cutoff_res, 2)
+write.csv(perf_cutoff_res, "rf_perf_cutoff_res.csv")
+
+calculateROC(final_fit)
+
+
+
+final_result <- final_fit %>% collect_metrics()
+final_result
+
+test_auc <- round(final_result$.estimate[2], 2)
+test_auc
 
 final_fit %>%
   collect_predictions() %>% 
-  roc_curve(fast_dic, .pred_Yes) %>% 
-  autoplot()
+  roc_curve(event_level = "second", truth = fast_dic, .pred_Yes)
+
+final_fit %>%
+  collect_predictions() %>% 
+  roc_curve(event_level = "second", truth = fast_dic, .pred_Yes) %>% 
+  ggplot(
+    aes(
+      x = 1 - specificity, 
+      y = sensitivity
+    )
+  ) + # plot with 2 ROC curves for each model
+  geom_path(show.legend = FALSE, alpha = 0.6, size = 1.2) +
+  geom_abline(slope = 1, intercept = 0, size = 0.4) +
+  scale_color_manual(values = c("#48466D", "#3D84A8")) +
+  coord_fixed() +
+  cowplot::theme_cowplot() +
+  annotate(geom = "text", 
+           x = 0.75, 
+           y = 0.25,
+           size = 5,
+           label = paste0("Test AUC \n", test_auc), 
+           color = "#333333")
+
+
+final_fit %>%
+  collect_predictions()
 
 
 final_model <- extract_workflow(final_fit)
@@ -238,5 +286,6 @@ tidy(final_model) %>% arrange(-estimate) %>% View()
 #https://www.tidymodels.org/start/tuning/#tuning
 # https://www.tmwr.org/performance.html
 
-save.image("sessions/tidy_main_analysis.RData")
+load("sessions/tidy_main_analysis.RData")
+#save.image("sessions/tidy_main_analysis.RData")
 
