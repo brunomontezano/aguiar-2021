@@ -234,8 +234,8 @@ perf_cutoff_res <- map(seq(0.1, 0.9, by = 0.1), mdl = final_fit, get_perf_by_cut
 perf_cutoff_res <- round(perf_cutoff_res, 2)
 write.csv(perf_cutoff_res, "rf_perf_cutoff_res.csv")
 
-calculateROC(final_fit)
-
+roc_ci <- calculateROC(final_fit)
+roc_ci
 
 
 final_result <- final_fit %>% collect_metrics()
@@ -244,9 +244,21 @@ final_result
 test_auc <- round(final_result$.estimate[2], 2)
 test_auc
 
+test_auc_str <- paste0("Test AUC: \n", 
+                       test_auc,
+                       " (", 
+                       roc_ci[2], 
+                       " - ", 
+                       roc_ci[3],
+                       ")")
+test_auc_str
+
+
 final_fit %>%
   collect_predictions() %>% 
   roc_curve(event_level = "second", truth = fast_dic, .pred_Yes)
+
+# Plot ROC 
 
 final_fit %>%
   collect_predictions() %>% 
@@ -266,7 +278,7 @@ final_fit %>%
            x = 0.75, 
            y = 0.25,
            size = 5,
-           label = paste0("Test AUC \n", test_auc), 
+           label = test_auc_str, 
            color = "#333333")
 
 
