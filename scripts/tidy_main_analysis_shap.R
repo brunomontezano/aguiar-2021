@@ -73,4 +73,4 @@ plt_shap_ed <- plt_shap +
 plt_shap_ed$layers[[1]]$aes_params$fill <- "red"
 plt_shap_ed$layers[[1]]$aes_params$size <- 2
 
-ggsave(filename = "~/shap_func_final.png", plot = plt_shap_ed)
+ggsave(filename = "~/shap_func_final.png", plot = plt_shap_ed, bg = "white")
