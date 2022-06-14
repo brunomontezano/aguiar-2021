@@ -9,3 +9,4 @@ sessions/*
 cache/*
 scripts/app/data/*
 scripts/app/rsconnect/*
+data/ds_*
